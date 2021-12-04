@@ -1,0 +1,27 @@
+{
+  "name": "project_4",
+  "version": "1.0.0",
+  "description": "Fall 2021 CSCI 5817 Project 4",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/tima0476/csci5817_proj4.git"
+  },
+  "author": "Timothy R. Mason",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tima0476/csci5817_proj4/issues"
+  },
+  "homepage": "https://github.com/tima0476/csci5817_proj4#readme",
+  "devDependencies": {
+    "axios": "^0.24.0",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "nodemon": "^2.0.15",
+    "pg-promise": "^10.11.1",
+    "redis": "^3.1.2"
+  }
+}
