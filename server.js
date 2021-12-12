@@ -23,8 +23,9 @@ app = express();
 // Establish postgres connection
 //
 const db = pg({
-    host: "host",   // Can't use localhost for wsl connections to the Windows postgres server.
+    host: "host",   // Can't use localhost for wsl connections to the Windows postgres server. See 
         // https://stackoverflow.com/questions/56824788/how-to-connect-to-windows-postgres-database-from-wsl
+        // for details and how to set up this host parameter.
     port: 5432,
     database: "testdb",
     user: "postgres",
@@ -106,49 +107,75 @@ app.get("/universities", async (req, res) => {
 app.get("/orders", async (req, res) => {
     console.log("In the Postgres endpoint");
     
-    // Build an SQL query and redis key based on our GET parameters
-    let qs = "SELECT * FROM OrderDetails";
-    let addedWhere = false;
+    // Build a redis key and check if we've already cahced this query
+    let key = "orders:";
+    key += req.query.OrderID + ":";
+    key += req.query.ProductID + ":";
+    key += req.query.UnitPrice + ":";
+    key += req.query.Quantity + ":";
+    key += req.query.Discount;
+    console.log("  Redis Key: " + key);
 
-    if (typeof req.query.OrderID !== "undefined") {
-        qs += ` WHERE OrderID=${req.query.OrderID}`;
-        addedWhere = true;
-    }
+    await redisClient.get(key, async(err, reply) => {
+        if (err) throw err;
 
-    if (typeof req.query.ProductID !== "undefined") {
-        qs += (addedWhere ? " AND " : " WHERE ");
-        qs += `ProductID=${req.query.ProductID}`;
-        addedWhere = true;
-    }
-    
-    if (typeof req.query.UnitPrice !== "undefined") {
-        qs += (addedWhere ? " AND " : " WHERE ");
-        qs += `UnitPrice=${req.query.UnitPrice}`;
-        addedWhere = true;
-    }
-    
-    if (typeof req.query.Quantity !== "undefined") {
-        qs += (addedWhere ? " AND " : " WHERE ");
-        qs += `Quantity=${req.query.Quantity}`;
-        addedWhere = true;
-    }
-    
-    if (typeof req.query.Discount !== "undefined") {
-        qs += (addedWhere ? " AND " : " WHERE ");
-        qs += `Discount=${req.query.Discount}`;
-        addedWhere = true;
-    }
-    
-    qs += ";";
-    console.log("  Query: " + qs);
+        if (reply == null) {
+            // Not in redis cache - build an SQL query
+            console.log("  Redis cache miss");
+            let qs = "SELECT * FROM OrderDetails";
+            let addedWhere = false;
+        
+            if (typeof req.query.OrderID !== "undefined") {
+                qs += ` WHERE OrderID=${req.query.OrderID}`;
+                addedWhere = true;
+            }
+        
+            if (typeof req.query.ProductID !== "undefined") {
+                qs += (addedWhere ? " AND " : " WHERE ");
+                qs += `ProductID=${req.query.ProductID}`;
+                addedWhere = true;
+            }
+            
+            if (typeof req.query.UnitPrice !== "undefined") {
+                qs += (addedWhere ? " AND " : " WHERE ");
+                qs += `UnitPrice=${req.query.UnitPrice}`;
+                addedWhere = true;
+            }
+            
+            if (typeof req.query.Quantity !== "undefined") {
+                qs += (addedWhere ? " AND " : " WHERE ");
+                qs += `Quantity=${req.query.Quantity}`;
+                addedWhere = true;
+            }
+            
+            if (typeof req.query.Discount !== "undefined") {
+                qs += (addedWhere ? " AND " : " WHERE ");
+                qs += `Discount=${req.query.Discount}`;
+                addedWhere = true;
+            }
+            
+            qs += ";";
+            console.log("  Query: " + qs);
+        
+            try {
+                const response = await db.any(qs, [true]);
+                res.send(response);
 
-    try {
-        res.send(await db.any(qs, [true]));
-    }
-    catch(e) {
-        console.error("Error in Postgres endpoint: ", e);
-        res.send("Error in Postgres endpoint: " + e);
-    }
+                // cache in Redis
+                await redisClient.set(key, JSON.stringify(response));
+            }
+            catch(e) {
+                console.error("Error in Postgres endpoint: ", e);
+                res.send("Error in Postgres endpoint: " + e);
+            }
+        } else {
+            // Redis cache hit! Output the data
+            console.log("  Redis cache HIT!");
+            res.send(JSON.parse(reply));
+        }
+
+    });
+
 })
 //
 // Launch the server
