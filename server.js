@@ -20,7 +20,7 @@ const redis = require("redis");     // https://www.npmjs.com/package/redis In-me
 app = express();
 
 //
-// PostgreSQL connection
+// Establish postgres connection
 //
 const db = pg({
     host: "host",   // Can't use localhost for wsl connections to the Windows postgres server.
@@ -38,7 +38,7 @@ const DEFAULT_EXPIRATION = 3600;
 const redisClient = redis.createClient();
 redisClient.on("connect", ( ) => { console.log("Connected to Redis"); });
 redisClient.on("error", err => { 
-    let msg = "Redis Error: " + err;
+    let msg = "Error connecting to Redis: " + err;
     console.error(msg); 
     throw new FatalError(msg);
 });
@@ -53,32 +53,51 @@ app.get("/universities", async (req, res) => {
     // API: https://github.com/Hipo/university-domains-list-api  parameters: country, name
     // example http://universities.hipolabs.com/search?country=United+States
     //
-    
-    // Build a query URL based on our GET parameters
-    let url = "http://universities.hipolabs.com/search?";
-    let needSep = false;
-    
-    if (typeof req.query.country !== "undefined") {
-        url += `country=${req.query.country}`;
-        needSep = true;
-    }
-    
-    if (typeof req.query.name !== "undefined") {
-        if (needSep) url += "&";
-        url += `name=${req.query.name}`;
-        needSep = true;
-    }
-    
-    console.log(`  URL: ${url}`);
-    
-    try {
-        const response = await axios.get(url);
-        // console.log(response.data);
-        res.send(response.data);
-    } catch(e) {
-        console.error(e);
-        res.send("Error in REST endpoint: " + e);
-    }
+
+    // Build a redis key and check if we've already cached this query
+    let key = `universities:${req.query.country}:${req.query.name}`;
+    console.log(`  Redis Key: ${key}`);
+
+    await redisClient.get(key, async (err, reply) => {
+        if (err) throw err;
+
+        if (reply == null) {
+            // Not in redis cache - build a query URL based on our GET parameters
+            console.log("  Redis cache miss");
+            let url = "http://universities.hipolabs.com/search?";
+            let needSep = false;
+            
+            if (typeof req.query.country !== "undefined") {
+                url += `country=${req.query.country}`;
+                needSep = true;
+            }
+            
+            if (typeof req.query.name !== "undefined") {
+                if (needSep) url += "&";
+                url += `name=${req.query.name}`;
+                needSep = true;
+            }
+            
+            console.log(`  URL: ${url}`);
+            
+            try {
+                const response = await axios.get(url);
+                // console.log(response.data);
+                res.send(response.data);
+
+                // cache in Redis
+                await redisClient.set(key, JSON.stringify(response.data));
+            } catch(e) {
+                console.error(e);
+                res.send("Error in REST endpoint: " + e);
+            }
+        } else {
+            // Redis cache hit!  Output the data
+            console.log("  Redis cache HIT!");
+            res.send(JSON.parse(reply));
+        }
+    });
+
 })
 
 //
@@ -87,7 +106,7 @@ app.get("/universities", async (req, res) => {
 app.get("/orders", async (req, res) => {
     console.log("In the Postgres endpoint");
     
-    // Build an SQL query based on our GET parameters
+    // Build an SQL query and redis key based on our GET parameters
     let qs = "SELECT * FROM OrderDetails";
     let addedWhere = false;
 
