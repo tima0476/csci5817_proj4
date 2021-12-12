@@ -25,7 +25,7 @@ app = express();
 const db = pg({
     host: "host",   // Can't use localhost for wsl connections to the Windows postgres server. See 
         // https://stackoverflow.com/questions/56824788/how-to-connect-to-windows-postgres-database-from-wsl
-        // for details and how to set up this host parameter.
+        // for details and how I set up this host parameter.
     port: 5432,
     database: "testdb",
     user: "postgres",
