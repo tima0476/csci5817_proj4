@@ -32,21 +32,27 @@ const db = pg({
 });
 
 //
-// Redis connection
+// Establish Redis connection
 //
 const DEFAULT_EXPIRATION = 3600;
 const redisClient = redis.createClient();
 redisClient.on("connect", ( ) => { console.log("Connected to Redis"); });
-redisClient.on("error", err => { console.log("Redis Error " + err); });
+redisClient.on("error", err => { 
+    let msg = "Redis Error: " + err;
+    console.error(msg); 
+    throw new FatalError(msg);
+});
 
 //
 // REST API endpoint
 //
 app.get("/universities", async (req, res) => {
+    console.log("In the REST endpoint");
+    //
     // https://github.com/Hipo/university-domains-list
     // API: https://github.com/Hipo/university-domains-list-api  parameters: country, name
     // example http://universities.hipolabs.com/search?country=United+States
-    console.log("In the REST endpoint");
+    //
     
     // Build a query URL based on our GET parameters
     let url = "http://universities.hipolabs.com/search?";
