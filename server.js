@@ -22,15 +22,14 @@ app = express();
 //
 // PostgreSQL connection
 //
-const dbConfig = {
-    host: "host",
+const db = pg({
+    host: "host",   // Can't use localhost for wsl connections to the Windows postgres server.
+        // https://stackoverflow.com/questions/56824788/how-to-connect-to-windows-postgres-database-from-wsl
     port: 5432,
     database: "testdb",
     user: "postgres",
     password: "abc123"
-};
-
-const db = pg(dbConfig);
+});
 
 //
 // Redis connection
@@ -41,15 +40,48 @@ redisClient.on("connect", ( ) => { console.log("Connected to Redis"); });
 redisClient.on("error", err => { console.log("Redis Error " + err); });
 
 //
-// Setup server endpoints
+// REST API endpoint
 //
-app.get("/rest", (req, res) => {
+app.get("/universities", async (req, res) => {
+    // https://github.com/Hipo/university-domains-list
+    // API: https://github.com/Hipo/university-domains-list-api  parameters: country, name
+    // example http://universities.hipolabs.com/search?country=United+States
     console.log("In the REST endpoint");
+    
+    // Build a query URL based on our GET parameters
+    let url = "http://universities.hipolabs.com/search?";
+    let needSep = false;
+    
+    if (typeof req.query.country !== "undefined") {
+        url += `country=${req.query.country}`;
+        needSep = true;
+    }
+    
+    if (typeof req.query.name !== "undefined") {
+        if (needSep) url += "&";
+        url += `name=${req.query.name}`;
+        needSep = true;
+    }
+    
+    console.log(`  URL: ${url}`);
+    
+    try {
+        const response = await axios.get(url);
+        // console.log(response.data);
+        res.send(response.data);
+    } catch(e) {
+        console.error(e);
+        res.send("Error in REST endpoint: " + e);
+    }
 })
 
+//
+// Postgresql endpoint
+//
 app.get("/orders", async (req, res) => {
     console.log("In the Postgres endpoint");
     
+    // Build an SQL query based on our GET parameters
     let qs = "SELECT * FROM OrderDetails";
     let addedWhere = false;
 
@@ -83,13 +115,13 @@ app.get("/orders", async (req, res) => {
     }
     
     qs += ";";
-    console.log("  The query is: " + qs);
+    console.log("  Query: " + qs);
 
     try {
         res.send(await db.any(qs, [true]));
     }
     catch(e) {
-        console.log("Error in Postgres endpoint: ", e);
+        console.error("Error in Postgres endpoint: ", e);
         res.send("Error in Postgres endpoint: " + e);
     }
 })
