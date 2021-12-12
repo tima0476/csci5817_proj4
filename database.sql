@@ -5,9 +5,7 @@ DB Setup script adapted from CSCI 5817 homework 1's HW1_MySQL_DBSetup.sql
     
 */
 
-DROP DATABASE IF EXISTS testdb;
-CREATE DATABASE testdb;
- 
+
 /* Table OrderDetails chosen simply because it contains the most records */
 CREATE TABLE OrderDetails(
 	OrderID int NOT NULL,
