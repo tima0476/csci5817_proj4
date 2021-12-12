@@ -37,7 +37,7 @@ const db = pg(dbConfig);
 //
 const DEFAULT_EXPIRATION = 3600;
 const redisClient = redis.createClient();
-redisClient.on("connect", function() { console.log("Connected to Redis"); });
+redisClient.on("connect", ( ) => { console.log("Connected to Redis"); });
 redisClient.on("error", err => { console.log("Redis Error " + err); });
 
 //
@@ -61,21 +61,25 @@ app.get("/orders", async (req, res) => {
     if (typeof req.query.ProductID !== "undefined") {
         qs += (addedWhere ? " AND " : " WHERE ");
         qs += `ProductID=${req.query.ProductID}`;
+        addedWhere = true;
     }
     
     if (typeof req.query.UnitPrice !== "undefined") {
         qs += (addedWhere ? " AND " : " WHERE ");
         qs += `UnitPrice=${req.query.UnitPrice}`;
+        addedWhere = true;
     }
     
     if (typeof req.query.Quantity !== "undefined") {
         qs += (addedWhere ? " AND " : " WHERE ");
         qs += `Quantity=${req.query.Quantity}`;
+        addedWhere = true;
     }
     
     if (typeof req.query.Discount !== "undefined") {
         qs += (addedWhere ? " AND " : " WHERE ");
         qs += `Discount=${req.query.Discount}`;
+        addedWhere = true;
     }
     
     qs += ";";
