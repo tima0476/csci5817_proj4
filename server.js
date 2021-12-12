@@ -60,7 +60,12 @@ app.get("/universities", async (req, res) => {
     console.log(`  Redis Key: ${key}`);
 
     await redisClient.get(key, async (err, reply) => {
-        if (err) throw err;
+        if (err) {
+            const msg = "  Redis get error: " + err
+            console.error(msg);
+            res.send(msg);
+            return
+        }
 
         if (reply == null) {
             // Not in redis cache - build a query URL based on our GET parameters
@@ -117,7 +122,12 @@ app.get("/orders", async (req, res) => {
     console.log("  Redis Key: " + key);
 
     await redisClient.get(key, async(err, reply) => {
-        if (err) throw err;
+        if (err) {
+            const msg = "  Redis get error: " + err
+            console.error(msg);
+            res.send(msg);
+            return
+        }
 
         if (reply == null) {
             // Not in redis cache - build an SQL query
